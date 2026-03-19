@@ -1,26 +1,27 @@
-const express = require('express');
+import express from 'express';
+import { obtenerTareas, obtenerTareaPorId, crearTarea } from '../controllers/tareasController.js';
+
 const router = express.Router();
-const tareasController = require('../controllers/tareasController');
 
 /**
  * @route   GET /api/tareas
  * @desc    Obtener todas las tareas del usuario
  * @access  Privado (requiere token JWT)
  */
-router.get('/', tareasController.obtenerTareas);
+router.get('/', obtenerTareas);
 
 /**
  * @route   GET /api/tareas/:id
  * @desc    Obtener una tarea específica por ID
  * @access  Privado (requiere token JWT)
  */
-router.get('/:id', tareasController.obtenerTareaPorId);
+router.get('/:id', obtenerTareaPorId);
 
 /**
  * @route   POST /api/tareas
  * @desc    Crear una nueva tarea
  * @access  Privado (requiere token JWT)
  */
-router.post('/', tareasController.crearTarea);
+router.post('/', crearTarea);
 
-module.exports = router;
+export default router;

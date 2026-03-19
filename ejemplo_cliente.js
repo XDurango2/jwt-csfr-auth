@@ -1,9 +1,9 @@
 // Ejemplo de cliente para probar la API de tareas
 // Este archivo muestra cómo interactuar con la API desde Node.js
 
-const axios = require('axios');
-const { CookieJar } = require('tough-cookie');
-const { wrapper } = require('axios-cookiejar-support');
+import axios from 'axios';
+import { CookieJar } from 'tough-cookie';
+import { wrapper } from 'axios-cookiejar-support';
 
 // Configurar axios con soporte de cookies
 const jar = new CookieJar();
@@ -199,8 +199,9 @@ console.log('2. Instala las dependencias adicionales: npm install axios tough-co
 console.log('3. Ejecuta este archivo: node ejemplo_cliente.js\n');
 
 // Si se ejecuta directamente, mostrar instrucciones
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   console.log('Este es un archivo de ejemplo. Sigue las instrucciones arriba para probarlo.');
+  probarAPI();
 }
 
-probarAPI();
+export { probarAPI };

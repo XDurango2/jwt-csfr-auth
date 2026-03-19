@@ -11,22 +11,23 @@ Servidor REST sencillo para manejar tareas (To-do) con autenticación JWT y prot
 - ✅ Middleware de autenticación robusto
 - ✅ Manejo de errores adecuado
 - ✅ Ejemplo de cliente incluido
+- ✅ **Módulos ES6** (import/export)
 
 ## Estructura del Proyecto
 
 ```
 .
-├── server.js              # Servidor principal
+├── server.js              # Servidor principal (ES6)
 ├── .env                   # Variables de entorno
 ├── middleware/
-│   └── auth.js           # Middleware de autenticación
+│   └── auth.js           # Middleware de autenticación (ES6)
 ├── controllers/
-│   ├── authController.js # Controlador de autenticación
-│   └── tareasController.js # Controlador de tareas
+│   ├── authController.js # Controlador de autenticación (ES6)
+│   └── tareasController.js # Controlador de tareas (ES6)
 ├── routes/
-│   ├── auth.js           # Rutas de autenticación
-│   └── tareas.js         # Rutas de tareas
-├── ejemplo_cliente.js     # Ejemplo de cliente para pruebas
+│   ├── auth.js           # Rutas de autenticación (ES6)
+│   └── tareas.js         # Rutas de tareas (ES6)
+├── ejemplo_cliente.js     # Ejemplo de cliente para pruebas (ES6)
 └── README.md             # Este archivo
 ```
 
@@ -45,7 +46,7 @@ Servidor REST sencillo para manejar tareas (To-do) con autenticación JWT y prot
 El archivo `.env` contiene:
 
 ```env
-PORT=3000
+PORT=3003
 CLIENT_URL=http://localhost:3001
 JWT_SECRET=mi_secreto_super_seguro_para_jwt_2024
 JWT_EXPIRES_IN=1h
@@ -59,10 +60,12 @@ CSRF_TOKEN_SECRET=mi_secreto_csrf_super_seguro
 ### Iniciar el servidor
 
 ```bash
+npm start
+# o
 node server.js
 ```
 
-El servidor estará disponible en `http://localhost:3000`
+El servidor estará disponible en `http://localhost:3003`
 
 ### Endpoints de la API
 
@@ -131,7 +134,7 @@ El servidor estará disponible en `http://localhost:3000`
 
 2. Ejecutar el servidor:
    ```bash
-   node server.js
+   npm start
    ```
 
 3. En otra terminal, ejecutar el cliente de ejemplo:
@@ -143,7 +146,7 @@ El servidor estará disponible en `http://localhost:3000`
 
 1. Login (obtener tokens):
    ```bash
-   curl -X POST http://localhost:3000/api/auth/login \
+   curl -X POST http://localhost:3003/api/auth/login \
      -H "x-api-key: mi_api_key_secreta_12345" \
      -H "Content-Type: application/json" \
      -d '{"email":"usuario@ejemplo.com"}' \
@@ -154,12 +157,35 @@ El servidor estará disponible en `http://localhost:3000`
 
 3. Crear tarea (usando cookies y CSRF):
    ```bash
-   curl -X POST http://localhost:3000/api/tareas \
+   curl -X POST http://localhost:3003/api/tareas \
      -H "x-csrf-token: [TOKEN_CSRF_AQUI]" \
      -H "Content-Type: application/json" \
      -d '{"titulo":"Mi tarea","descripcion":"Descripción"}' \
      -b cookies.txt
    ```
+
+## Cambios a Módulos ES6
+
+El proyecto ha sido migrado de CommonJS a ES6 Modules. Los cambios principales son:
+
+- **package.json**: Se agregó `"type": "module"`
+- **Import/Export**: `require()` → `import`, `module.exports` → `export`
+- **Extensiones de archivo**: Se mantienen `.js` pero ahora usan sintaxis ES6
+- **Rutas**: Se requieren extensiones completas (`.js`) en imports
+
+### Ejemplos de conversión:
+
+**CommonJS:**
+```javascript
+const express = require('express');
+module.exports = { miFuncion };
+```
+
+**ES6:**
+```javascript
+import express from 'express';
+export { miFuncion };
+```
 
 ## Seguridad
 

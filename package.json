@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Servidor REST de Tareas con JWT y Cookies HTTP-Only",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",

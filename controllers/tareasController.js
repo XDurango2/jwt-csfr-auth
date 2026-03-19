@@ -5,7 +5,7 @@ let siguienteId = 1;
 /**
  * Obtener todas las tareas del usuario
  */
-const obtenerTareas = (req, res) => {
+export const obtenerTareas = (req, res) => {
   try {
     // Filtrar tareas por usuario (en este ejemplo, todas son del usuario actual)
     const tareasUsuario = tareas.filter(tarea => tarea.usuarioId === req.usuario.id);
@@ -24,7 +24,7 @@ const obtenerTareas = (req, res) => {
 /**
  * Crear una nueva tarea
  */
-const crearTarea = (req, res) => {
+export const crearTarea = (req, res) => {
   try {
     const { titulo, descripcion, completada = false } = req.body;
     
@@ -60,7 +60,7 @@ const crearTarea = (req, res) => {
 /**
  * Obtener una tarea específica por ID
  */
-const obtenerTareaPorId = (req, res) => {
+export const obtenerTareaPorId = (req, res) => {
   try {
     const tareaId = parseInt(req.params.id);
     
@@ -84,10 +84,4 @@ const obtenerTareaPorId = (req, res) => {
     console.error('Error al obtener tarea:', error);
     res.status(500).json({ error: 'Error al obtener tarea' });
   }
-};
-
-module.exports = {
-  obtenerTareas,
-  crearTarea,
-  obtenerTareaPorId
 };

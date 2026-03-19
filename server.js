@@ -1,7 +1,12 @@
-const express = require('express');
-const cookieParser = require('cookie-parser');
-const cors = require('cors');
-require('dotenv').config();
+import express from 'express';
+import cookieParser from 'cookie-parser';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { verificarToken } from './middleware/auth.js';
+import tareasRoutes from './routes/tareas.js';
+import authRoutes from './routes/auth.js';
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3003;
@@ -14,16 +19,11 @@ app.use(cors({
   credentials: true
 }));
 
-// Importar rutas y middleware
-const authMiddleware = require('./middleware/auth');
-const tareasRoutes = require('./routes/tareas');
-const authRoutes = require('./routes/auth');
-
 // Rutas públicas (sin autenticación)
 app.use('/api/auth', authRoutes);
 
 // Rutas protegidas (requieren autenticación)
-app.use('/api/tareas', authMiddleware.verificarToken, tareasRoutes);
+app.use('/api/tareas', verificarToken, tareasRoutes);
 
 // Ruta de prueba
 app.get('/', (req, res) => {

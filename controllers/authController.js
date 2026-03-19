@@ -1,17 +1,17 @@
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
 /**
  * Generar un token CSRF seguro
  */
-const generarTokenCSRF = () => {
+export const generarTokenCSRF = () => {
   return crypto.randomBytes(32).toString('hex');
 };
 
 /**
  * Login - Generar tokens JWT y CSRF
  */
-const login = (req, res) => {
+export const login = (req, res) => {
   try {
     // En un sistema real, aquí validarías credenciales contra una base de datos
     // Para este ejemplo, asumimos que la API key ya fue validada por el middleware
@@ -73,7 +73,7 @@ const login = (req, res) => {
 /**
  * Logout - Eliminar cookies
  */
-const logout = (req, res) => {
+export const logout = (req, res) => {
   try {
     // Eliminar cookie JWT
     res.clearCookie('jwt_token', {
@@ -98,7 +98,7 @@ const logout = (req, res) => {
 /**
  * Verificar estado de autenticación
  */
-const verificarAuth = (req, res) => {
+export const verificarAuth = (req, res) => {
   try {
     // El middleware ya verificó el token, así que solo devolvemos la info del usuario
     res.json({
@@ -109,11 +109,4 @@ const verificarAuth = (req, res) => {
     console.error('Error al verificar auth:', error);
     res.status(500).json({ error: 'Error al verificar autenticación' });
   }
-};
-
-module.exports = {
-  login,
-  logout,
-  verificarAuth,
-  generarTokenCSRF
 };

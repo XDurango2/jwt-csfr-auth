@@ -1,10 +1,10 @@
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 
 /**
  * Middleware para verificar el token JWT desde la cookie HTTP-Only
  * y validar el token CSRF
  */
-const verificarToken = (req, res, next) => {
+export const verificarToken = (req, res, next) => {
   try {
     // Obtener el token JWT de la cookie HTTP-Only
     const tokenJWT = req.cookies.jwt_token;
@@ -59,7 +59,7 @@ const verificarToken = (req, res, next) => {
 /**
  * Middleware para validar la API key en el header (para login)
  */
-const validarApiKey = (req, res, next) => {
+export const validarApiKey = (req, res, next) => {
   const apiKey = req.headers['x-api-key'];
   
   if (!apiKey) {
@@ -71,9 +71,4 @@ const validarApiKey = (req, res, next) => {
   }
   
   next();
-};
-
-module.exports = {
-  verificarToken,
-  validarApiKey
 };
