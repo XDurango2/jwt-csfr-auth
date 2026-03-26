@@ -1,87 +1,110 @@
-// Almacenamiento en memoria (en producción usarías una base de datos)
-let tareas = [];
-let siguienteId = 1;
+// controllers/tareasController.js
+import Tarea from '../models/Tarea.js'
 
 /**
- * Obtener todas las tareas del usuario
+ * GET /api/tareas
+ * Obtener todas las tareas del usuario autenticado
  */
-export const obtenerTareas = (req, res) => {
+export const obtenerTareas = async (req, res) => {
   try {
-    // Filtrar tareas por usuario (en este ejemplo, todas son del usuario actual)
-    const tareasUsuario = tareas.filter(tarea => tarea.usuarioId === req.usuario.id);
-    
-    res.json({
-      mensaje: 'Tareas obtenidas exitosamente',
-      total: tareasUsuario.length,
-      tareas: tareasUsuario
-    });
+    const tareas = await Tarea.findAll({
+      where: { usuarioId: req.usuario.id },
+      order: [['created_at', 'DESC']],
+    })
+    res.json(tareas)
   } catch (error) {
-    console.error('Error al obtener tareas:', error);
-    res.status(500).json({ error: 'Error al obtener tareas' });
+    console.error('Error al obtener tareas:', error)
+    res.status(500).json({ error: 'Error al obtener tareas' })
   }
-};
+}
 
 /**
+ * GET /api/tareas/:id
+ * Obtener una tarea específica del usuario
+ */
+export const obtenerTareaPorId = async (req, res) => {
+  try {
+    const tarea = await Tarea.findOne({
+      where: { id: req.params.id, usuarioId: req.usuario.id },
+    })
+    if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' })
+    res.json(tarea)
+  } catch (error) {
+    console.error('Error al obtener tarea:', error)
+    res.status(500).json({ error: 'Error al obtener tarea' })
+  }
+}
+
+/**
+ * POST /api/tareas
  * Crear una nueva tarea
+ * Body esperado: { titulo, texto, categoria }
  */
-export const crearTarea = (req, res) => {
+export const crearTarea = async (req, res) => {
   try {
-    const { titulo, descripcion, completada = false } = req.body;
-    
-    // Validar campos requeridos
+    const { titulo, texto, categoria } = req.body
+
     if (!titulo || titulo.trim() === '') {
-      return res.status(400).json({ error: 'El título es requerido' });
+      return res.status(400).json({ error: 'El título es requerido' })
     }
-    
-    // Crear nueva tarea
-    const nuevaTarea = {
-      id: siguienteId++,
+
+    const tarea = await Tarea.create({
       usuarioId: req.usuario.id,
-      titulo: titulo.trim(),
-      descripcion: descripcion ? descripcion.trim() : '',
-      completada: Boolean(completada),
-      fechaCreacion: new Date().toISOString(),
-      fechaActualizacion: new Date().toISOString()
-    };
-    
-    // Agregar a la lista de tareas
-    tareas.push(nuevaTarea);
-    
-    res.status(201).json({
-      mensaje: 'Tarea creada exitosamente',
-      tarea: nuevaTarea
-    });
+      titulo:    titulo.trim(),
+      texto:     texto?.trim() ?? '',
+      categoria: categoria ?? '',
+      completada: false,
+    })
+
+    res.status(201).json(tarea)
   } catch (error) {
-    console.error('Error al crear tarea:', error);
-    res.status(500).json({ error: 'Error al crear tarea' });
+    console.error('Error al crear tarea:', error)
+    res.status(500).json({ error: 'Error al crear tarea' })
   }
-};
+}
 
 /**
- * Obtener una tarea específica por ID
+ * PUT /api/tareas/:id
+ * Actualizar una tarea (título, texto, categoría, completada)
+ * Body esperado: cualquier subconjunto de { titulo, texto, categoria, completada }
  */
-export const obtenerTareaPorId = (req, res) => {
+export const actualizarTarea = async (req, res) => {
   try {
-    const tareaId = parseInt(req.params.id);
-    
-    if (isNaN(tareaId)) {
-      return res.status(400).json({ error: 'ID de tarea inválido' });
-    }
-    
-    const tarea = tareas.find(t => 
-      t.id === tareaId && t.usuarioId === req.usuario.id
-    );
-    
-    if (!tarea) {
-      return res.status(404).json({ error: 'Tarea no encontrada' });
-    }
-    
-    res.json({
-      mensaje: 'Tarea obtenida exitosamente',
-      tarea
-    });
+    const tarea = await Tarea.findOne({
+      where: { id: req.params.id, usuarioId: req.usuario.id },
+    })
+    if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' })
+
+    const { titulo, texto, categoria, completada } = req.body
+    await tarea.update({
+      ...(titulo     !== undefined && { titulo:     titulo.trim() }),
+      ...(texto      !== undefined && { texto:      texto.trim() }),
+      ...(categoria  !== undefined && { categoria }),
+      ...(completada !== undefined && { completada: Boolean(completada) }),
+    })
+
+    res.json(tarea)
   } catch (error) {
-    console.error('Error al obtener tarea:', error);
-    res.status(500).json({ error: 'Error al obtener tarea' });
+    console.error('Error al actualizar tarea:', error)
+    res.status(500).json({ error: 'Error al actualizar tarea' })
   }
-};
+}
+
+/**
+ * DELETE /api/tareas/:id
+ * Eliminar una tarea del usuario
+ */
+export const eliminarTarea = async (req, res) => {
+  try {
+    const tarea = await Tarea.findOne({
+      where: { id: req.params.id, usuarioId: req.usuario.id },
+    })
+    if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' })
+
+    await tarea.destroy()
+    res.json({ mensaje: 'Tarea eliminada exitosamente' })
+  } catch (error) {
+    console.error('Error al eliminar tarea:', error)
+    res.status(500).json({ error: 'Error al eliminar tarea' })
+  }
+}

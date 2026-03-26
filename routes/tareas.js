@@ -1,27 +1,19 @@
-import express from 'express';
-import { obtenerTareas, obtenerTareaPorId, crearTarea } from '../controllers/tareasController.js';
+// routes/tareas.js
+import express from 'express'
+import {
+  obtenerTareas,
+  obtenerTareaPorId,
+  crearTarea,
+  actualizarTarea,  // ✅ antes faltaba
+  eliminarTarea,    // ✅ antes faltaba
+} from '../controllers/tareasController.js'
 
-const router = express.Router();
+const router = express.Router()
 
-/**
- * @route   GET /api/tareas
- * @desc    Obtener todas las tareas del usuario
- * @access  Privado (requiere token JWT)
- */
-router.get('/', obtenerTareas);
+router.get('/',     obtenerTareas)
+router.get('/:id',  obtenerTareaPorId)
+router.post('/',    crearTarea)
+router.put('/:id',  actualizarTarea)    // ✅ nueva ruta
+router.delete('/:id', eliminarTarea)   // ✅ nueva ruta
 
-/**
- * @route   GET /api/tareas/:id
- * @desc    Obtener una tarea específica por ID
- * @access  Privado (requiere token JWT)
- */
-router.get('/:id', obtenerTareaPorId);
-
-/**
- * @route   POST /api/tareas
- * @desc    Crear una nueva tarea
- * @access  Privado (requiere token JWT)
- */
-router.post('/', crearTarea);
-
-export default router;
+export default router
