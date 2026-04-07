@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import Usuario from '../models/Usuario.js';
 
 /**
  * Generar un token CSRF seguro
@@ -11,24 +12,32 @@ export const generarTokenCSRF = () => {
 /**
  * Login - Generar tokens JWT y CSRF
  */
-export const login = (req, res) => {
+export const login = async (req, res) => {
   try {
-    // En un sistema real, aquí validarías credenciales contra una base de datos
-    // Para este ejemplo, asumimos que la API key ya fue validada por el middleware
-    
     const { email } = req.body;
     
     if (!email || email.trim() === '') {
       return res.status(400).json({ error: 'El email es requerido' });
     }
+
+    const trimmedEmail = email.trim();
+
+    // Buscar o crear el usuario en la base de datos
+    const [usuario] = await Usuario.findOrCreate({
+      where: { email: trimmedEmail },
+      defaults: {
+        nombre: trimmedEmail.split('@')[0] || trimmedEmail,
+        password: crypto.randomBytes(16).toString('hex'),
+      },
+    });
     
     // Generar token CSRF
     const csrfToken = generarTokenCSRF();
     
-    // Crear payload para JWT
+    // Crear payload para JWT con el id real del usuario
     const payload = {
-      id: 1, // En producción, esto vendría de la base de datos
-      email: email.trim(),
+      id: usuario.id,
+      email: usuario.email,
       apiKey: process.env.API_KEY,
       csrfToken: csrfToken
     };

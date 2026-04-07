@@ -6,7 +6,7 @@ import dotenv from 'dotenv'
 import { verificarToken } from './middleware/auth.js'
 import tareasRoutes from './routes/tareas.js'
 import authRoutes from './routes/auth.js'
-import { conectarDB } from './db.js'   // ✅ nuevo
+import { conectarDB } from './db.js'   
 
 dotenv.config()
 
@@ -32,7 +32,7 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message || 'Error interno del servidor' })
 })
 
-// ✅ Conectar a la DB antes de levantar el servidor
+// Conectar a la DB antes de levantar el servidor
 conectarDB()
   .then(() => {
     app.listen(PORT, () => {
@@ -40,6 +40,6 @@ conectarDB()
     })
   })
   .catch((err) => {
-    console.error('❌ No se pudo conectar a la DB:', err)
+    console.error('No se pudo conectar a la DB:', err)
     process.exit(1)
   })

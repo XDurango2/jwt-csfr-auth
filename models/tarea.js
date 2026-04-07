@@ -1,6 +1,6 @@
 // src/models/Tarea.js
 import { DataTypes } from 'sequelize'
-import { sequelize } from '../db.js'
+import { sequelize } from '../config/sequelize.js'
 
 const Tarea = sequelize.define('Tarea', {
   id: {

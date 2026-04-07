@@ -2,22 +2,16 @@
 // Conexión central a MariaDB/MySQL via Sequelize.
 // XAMPP usa por defecto: host=localhost, puerto=3306, user=root, password=''
 
-import { Sequelize } from 'sequelize'
-import dotenv from 'dotenv'
+import { sequelize } from './config/sequelize.js'
+import Usuario from './models/Usuario.js'
+import Tarea from './models/Tarea.js'
 
-dotenv.config()
+// Registrar modelos
+export { Usuario, Tarea, sequelize }
 
-export const sequelize = new Sequelize(
-  process.env.DB_NAME     || 'tareas_demo',
-  process.env.DB_USER     || 'root',
-  process.env.DB_PASSWORD || '',
-  {
-    host:    process.env.DB_HOST || 'localhost',
-    port:    process.env.DB_PORT || 3306,
-    dialect: 'mysql',      // Sequelize usa el driver mysql2 para MariaDB también
-    logging: false,        // Cambiar a console.log para ver las queries en desarrollo
-  }
-)
+// Definir relaciones entre modelos
+Usuario.hasMany(Tarea, { foreignKey: 'usuarioId', onDelete: 'CASCADE' })
+Tarea.belongsTo(Usuario, { foreignKey: 'usuarioId' })
 
 /**
  * Probar conexión e inicializar tablas.
@@ -27,7 +21,7 @@ export const sequelize = new Sequelize(
  */
 export async function conectarDB() {
   await sequelize.authenticate()
-  console.log('✅ Conectado a MariaDB')
+  console.log('✓ Conectado a MariaDB')
   await sequelize.sync({ alter: true })
-  console.log('✅ Tablas sincronizadas')
+  console.log('✓ Tablas sincronizadas')
 }
