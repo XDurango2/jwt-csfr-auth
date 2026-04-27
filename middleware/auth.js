@@ -23,21 +23,16 @@ export const verificarToken = (req, res, next) => {
     // Verificar el token JWT
     const decoded = jwt.verify(tokenJWT, process.env.JWT_SECRET);
     
-    // Verificar que el token CSRF coincida con el almacenado en el JWT
-    if (decoded.csrfToken !== csrfToken) {
-      return res.status(401).json({ error: 'Token CSRF inválido' });
-    }
-
-    // Verificar la API key
-    if (decoded.apiKey !== process.env.API_KEY) {
-      return res.status(401).json({ error: 'API Key inválida' });
+    // En verificarToken, reemplaza la comparación de CSRF por:
+    const csrfCookie = req.cookies.csrf_token
+    if (!csrfCookie || csrfCookie !== csrfToken) {
+      return res.status(401).json({ error: 'Token CSRF inválido en el middleware' })
     }
 
     // Agregar información del usuario a la request
     req.usuario = {
       id: decoded.id,
       email: decoded.email,
-      apiKey: decoded.apiKey
     };
 
     next();

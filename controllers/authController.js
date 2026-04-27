@@ -1,6 +1,10 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import Usuario from '../models/Usuario.js';
+import { OAuth2Client } from 'google-auth-library'; 
+
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+const googleClient = new OAuth2Client(googleClientId);
 
 /**
  * Generar un token CSRF seguro
@@ -14,71 +18,80 @@ export const generarTokenCSRF = () => {
  */
 export const login = async (req, res) => {
   try {
-    const { email } = req.body;
-    
-    if (!email || email.trim() === '') {
-      return res.status(400).json({ error: 'El email es requerido' });
+    const { credential } = req.body;
+
+    if (!credential) {
+      return res.status(400).json({ error: 'Credential requerido' });
     }
 
-    const trimmedEmail = email.trim();
+    // 🔍 1. Verificar token con Google
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
 
-    // Buscar o crear el usuario en la base de datos
+    const payloadGoogle = ticket.getPayload();
+
+    const email = payloadGoogle.email;
+    const nombre = payloadGoogle.name;
+    const googleId = payloadGoogle.sub;
+
+    // 🗄️ 2. Buscar o crear usuario
     const [usuario] = await Usuario.findOrCreate({
-      where: { email: trimmedEmail },
+      where: { email },
       defaults: {
-        nombre: trimmedEmail.split('@')[0] || trimmedEmail,
+        nombre: nombre || email.split('@')[0],
         password: crypto.randomBytes(16).toString('hex'),
+        id: googleId
       },
     });
-    
-    // Generar token CSRF
+
+    // 🔐 3. Generar CSRF
     const csrfToken = generarTokenCSRF();
-    
-    // Crear payload para JWT con el id real del usuario
+
+    // 🔐 4. Payload JWT (IMPORTANTE: no metas csrf aquí)
     const payload = {
       id: usuario.id,
       email: usuario.email,
-      apiKey: process.env.API_KEY,
-      csrfToken: csrfToken
+      googleId: googleId
     };
-    
-    // Generar token JWT
+
     const tokenJWT = jwt.sign(
       payload,
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
-    
-    // Configurar cookie HTTP-Only para el token JWT
+
+    // 🍪 5. Cookies
     res.cookie('jwt_token', tokenJWT, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Solo HTTPS en producción
-      sameSite: 'strict',
-      maxAge: parseInt(process.env.COOKIE_MAX_AGE)
-    });
-    
-    // Configurar cookie para el token CSRF (no HTTP-Only para que el cliente pueda leerlo)
-    res.cookie('csrf_token', csrfToken, {
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: parseInt(process.env.COOKIE_MAX_AGE)
     });
-    
+
+    res.cookie('csrf_token', csrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: parseInt(process.env.COOKIE_MAX_AGE)
+    });
+
+    // 📤 6. Respuesta
     res.json({
       mensaje: 'Login exitoso',
       usuario: {
-        id: payload.id,
-        email: payload.email
+        id: usuario.id,
+        email: usuario.email
       },
-      csrfToken: csrfToken // También devolver en la respuesta para conveniencia
+      csrfToken
     });
-    
+
   } catch (error) {
     console.error('Error en login:', error);
-    res.status(500).json({ error: 'Error en el proceso de login' });
+    res.status(401).json({ error: 'Token de Google inválido' });
   }
 };
-
 /**
  * Logout - Eliminar cookies
  */
@@ -88,13 +101,13 @@ export const logout = (req, res) => {
     res.clearCookie('jwt_token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
+      sameSite: 'lax'
     });
     
     // Eliminar cookie CSRF
     res.clearCookie('csrf_token', {
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
+      sameSite: 'lax'
     });
     
     res.json({ mensaje: 'Logout exitoso' });
@@ -103,7 +116,20 @@ export const logout = (req, res) => {
     res.status(500).json({ error: 'Error en el proceso de logout' });
   }
 };
+export const validarCSRF = (req, res, next) => {
+  const csrfCookie = req.cookies.csrf_token;
+  const csrfHeader = req.headers['x-csrf-token'];
 
+  console.log('Cookie CSRF:', csrfCookie)   // ← agrega
+  console.log('Header CSRF:', csrfHeader)   // ← agrega
+  console.log('¿Iguales?:', csrfCookie === csrfHeader)  // ← agrega
+
+  if (!csrfCookie || csrfCookie !== csrfHeader) {
+    return res.status(403).json({ error: 'CSRF inválido' });
+  }
+
+  next();
+};
 /**
  * Verificar estado de autenticación
  */

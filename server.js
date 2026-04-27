@@ -1,12 +1,12 @@
 // server.js
 import express from 'express'
 import cookieParser from 'cookie-parser'
-import cors from 'cors'
 import dotenv from 'dotenv'
+import { corsMiddleware } from './middleware/cors.js'
 import { verificarToken } from './middleware/auth.js'
 import tareasRoutes from './routes/tareas.js'
 import authRoutes from './routes/auth.js'
-import { conectarDB } from './db.js'   
+import { conectarDB } from './db.js'
 
 dotenv.config()
 
@@ -15,10 +15,7 @@ const PORT = process.env.PORT || 3003
 
 app.use(express.json())
 app.use(cookieParser())
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3001',
-  credentials: true,
-}))
+app.use(corsMiddleware)
 
 app.use('/api/auth',   authRoutes)
 app.use('/api/tareas', verificarToken, tareasRoutes)

@@ -22,10 +22,10 @@ const Tarea = sequelize.define('Tarea', {
     allowNull:    true,
     defaultValue: '',
   },
-  categoria: {
-    type:         DataTypes.STRING(50),
+  categorias: {                      // ← renombrado de "categoria"
+    type:         DataTypes.JSON,    // ← JSON en lugar de ARRAY (MySQL)
     allowNull:    true,
-    defaultValue: '',
+    defaultValue: [],                // ← array vacío, no string
   },
   completada: {
     type:         DataTypes.BOOLEAN,

@@ -42,20 +42,24 @@ export const obtenerTareaPorId = async (req, res) => {
  */
 export const crearTarea = async (req, res) => {
   try {
-    const { titulo, texto, categoria } = req.body
+    const { titulo, texto, categorias } = req.body
 
     if (!titulo || titulo.trim() === '') {
       return res.status(400).json({ error: 'El título es requerido' })
     }
 
+    // Acepta array o string legacy → siempre guarda como array
+    const cats = Array.isArray(categorias)
+      ? categorias
+      : (categorias ? [categorias] : [])
+
     const tarea = await Tarea.create({
-      usuarioId: req.usuario.id,
-      titulo:    titulo.trim(),
-      texto:     texto?.trim() ?? '',
-      categoria: categoria ?? '',
+      usuarioId:  req.usuario.id,
+      titulo:     titulo.trim(),
+      texto:      texto?.trim() ?? '',
+      categorias: cats,
       completada: false,
     })
-
     res.status(201).json(tarea)
   } catch (error) {
     console.error('Error al crear tarea:', error)
@@ -65,8 +69,7 @@ export const crearTarea = async (req, res) => {
 
 /**
  * PUT /api/tareas/:id
- * Actualizar una tarea (título, texto, categoría, completada)
- * Body esperado: cualquier subconjunto de { titulo, texto, categoria, completada }
+ * Body esperado: cualquier subconjunto de { titulo, texto, categorias, completada }
  */
 export const actualizarTarea = async (req, res) => {
   try {
@@ -75,14 +78,19 @@ export const actualizarTarea = async (req, res) => {
     })
     if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' })
 
-    const { titulo, texto, categoria, completada } = req.body
+    const { titulo, texto, categorias, completada } = req.body
+
+    // Normaliza igual que en crearTarea por si llega string legacy
+    const cats = categorias !== undefined
+      ? (Array.isArray(categorias) ? categorias : [categorias])
+      : undefined
+
     await tarea.update({
       ...(titulo     !== undefined && { titulo:     titulo.trim() }),
       ...(texto      !== undefined && { texto:      texto.trim() }),
-      ...(categoria  !== undefined && { categoria }),
+      ...(cats       !== undefined && { categorias: cats }),
       ...(completada !== undefined && { completada: Boolean(completada) }),
     })
-
     res.json(tarea)
   } catch (error) {
     console.error('Error al actualizar tarea:', error)

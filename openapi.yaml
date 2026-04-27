@@ -1,0 +1,436 @@
+openapi: 3.0.3
+
+info:
+  title: Tareas API
+  description: |
+    API REST para gestión de tareas con autenticación Google OAuth + JWT + CSRF.
+
+    ## Flujo de autenticación
+    1. El cliente obtiene un `credential` de Google (via Google Identity Services).
+    2. `POST /api/auth/login` valida el credential con Google, crea la sesión y devuelve dos cookies:
+       - `jwt_token` (HTTP-Only) — no accesible desde JS.
+       - `csrf_token` — accesible desde JS, debe enviarse en el header `x-csrf-token` en cada request posterior.
+    3. Todos los endpoints protegidos requieren que el navegador envíe `withCredentials: true` (las cookies van automáticamente) más el header `x-csrf-token`.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3003/api
+    description: Servidor de desarrollo
+
+# ── Seguridad global ────────────────────────────────────────────────────────
+# Los endpoints protegidos requieren las dos cookies + el header CSRF.
+# Se declara aquí y se sobreescribe en login (que usa apiKey en su lugar).
+security:
+  - cookieJWT: []
+    csrfHeader: []
+
+components:
+
+  securitySchemes:
+    apiKeyHeader:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: Requerida solo en el endpoint de login.
+    cookieJWT:
+      type: apiKey
+      in: cookie
+      name: jwt_token
+      description: Cookie HTTP-Only establecida por el servidor al hacer login.
+    csrfHeader:
+      type: apiKey
+      in: header
+      name: x-csrf-token
+      description: Token CSRF devuelto en el body del login y en la cookie `csrf_token`.
+
+  schemas:
+
+    Usuario:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          format: email
+          example: usuario@gmail.com
+
+    Tarea:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 42
+        usuarioId:
+          type: integer
+          example: 1
+        titulo:
+          type: string
+          maxLength: 150
+          example: Comprar leche
+        texto:
+          type: string
+          nullable: true
+          example: Ir al supermercado antes de las 7pm
+        categorias:
+          type: array
+          items:
+            type: string
+          example: ["personal", "compras"]
+        completada:
+          type: boolean
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TareaInput:
+      type: object
+      required:
+        - titulo
+      properties:
+        titulo:
+          type: string
+          maxLength: 150
+          example: Comprar leche
+        texto:
+          type: string
+          nullable: true
+          example: Ir al supermercado antes de las 7pm
+        categorias:
+          oneOf:
+            - type: array
+              items:
+                type: string
+              example: ["personal"]
+            - type: string
+              example: personal
+          description: Puede enviarse como array o string (se normaliza a array en el servidor).
+
+    TareaUpdate:
+      type: object
+      description: Todos los campos son opcionales; solo se actualizan los que se envíen.
+      properties:
+        titulo:
+          type: string
+          maxLength: 150
+        texto:
+          type: string
+          nullable: true
+        categorias:
+          oneOf:
+            - type: array
+              items:
+                type: string
+            - type: string
+        completada:
+          type: boolean
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Mensaje de error
+
+# ── Paths ───────────────────────────────────────────────────────────────────
+paths:
+
+  # ── Auth ──────────────────────────────────────────────────────────────────
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Iniciar sesión con Google
+      description: |
+        Verifica el credential de Google, crea o recupera el usuario en la DB,
+        y establece las cookies de sesión (`jwt_token` HTTP-Only y `csrf_token`).
+      security:
+        - apiKeyHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [credential]
+              properties:
+                credential:
+                  type: string
+                  description: ID token JWT devuelto por Google Identity Services.
+                  example: eyJhbGciOiJSUzI1NiIs...
+      responses:
+        '200':
+          description: Login exitoso.
+          headers:
+            Set-Cookie:
+              description: |
+                Dos cookies son establecidas:
+                - `jwt_token` (HTTP-Only, SameSite=Lax)
+                - `csrf_token` (SameSite=Lax, accesible desde JS)
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mensaje:
+                    type: string
+                    example: Login exitoso
+                  usuario:
+                    $ref: '#/components/schemas/Usuario'
+                  csrfToken:
+                    type: string
+                    description: Debe enviarse en el header `x-csrf-token` en requests posteriores.
+                    example: a3f8c2e1d4b5...
+        '400':
+          description: Credential no proporcionado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: API Key inválida o credential de Google inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/verify:
+    get:
+      tags: [Auth]
+      summary: Verificar sesión activa
+      description: |
+        Comprueba si el usuario tiene una sesión válida usando la cookie `jwt_token`
+        y el header `x-csrf-token`. Útil para restaurar la sesión al recargar la app.
+      responses:
+        '200':
+          description: Sesión válida.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  autenticado:
+                    type: boolean
+                    example: true
+                  usuario:
+                    $ref: '#/components/schemas/Usuario'
+        '401':
+          description: Sin sesión activa o tokens inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Cerrar sesión
+      description: Elimina las cookies `jwt_token` y `csrf_token` del navegador.
+      responses:
+        '200':
+          description: Logout exitoso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mensaje:
+                    type: string
+                    example: Logout exitoso
+        '401':
+          description: No autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ── Tareas ─────────────────────────────────────────────────────────────────
+
+  /tareas:
+    get:
+      tags: [Tareas]
+      summary: Listar tareas del usuario
+      description: Devuelve todas las tareas del usuario autenticado, ordenadas por fecha de creación descendente.
+      responses:
+        '200':
+          description: Lista de tareas.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tarea'
+        '401':
+          description: No autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Error interno.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags: [Tareas]
+      summary: Crear una tarea
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TareaInput'
+            example:
+              titulo: Comprar leche
+              texto: Ir al supermercado antes de las 7pm
+              categorias: ["personal", "compras"]
+      responses:
+        '201':
+          description: Tarea creada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tarea'
+        '400':
+          description: Título requerido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: No autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Error interno.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tareas/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID de la tarea.
+        example: 42
+
+    get:
+      tags: [Tareas]
+      summary: Obtener una tarea por ID
+      responses:
+        '200':
+          description: Tarea encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tarea'
+        '401':
+          description: No autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Tarea no encontrada (o pertenece a otro usuario).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Error interno.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags: [Tareas]
+      summary: Actualizar una tarea
+      description: Actualización parcial — solo se modifican los campos enviados.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TareaUpdate'
+            example:
+              completada: true
+      responses:
+        '200':
+          description: Tarea actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tarea'
+        '401':
+          description: No autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Tarea no encontrada (o pertenece a otro usuario).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Error interno.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Tareas]
+      summary: Eliminar una tarea
+      responses:
+        '200':
+          description: Tarea eliminada.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mensaje:
+                    type: string
+                    example: Tarea eliminada exitosamente
+        '401':
+          description: No autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Tarea no encontrada (o pertenece a otro usuario).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Error interno.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+tags:
+  - name: Auth
+    description: Endpoints de autenticación (Google OAuth + JWT + CSRF)
+  - name: Tareas
+    description: CRUD de tareas del usuario autenticado
