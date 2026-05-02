@@ -1,5 +1,7 @@
 // server.js
 import express from 'express'
+import https from 'https'      // 👈 agregar
+import fs from 'fs'            // 👈 agregar
 import cookieParser from 'cookie-parser'
 import dotenv from 'dotenv'
 import { corsMiddleware } from './middleware/cors.js'
@@ -13,6 +15,11 @@ dotenv.config()
 const app = express()
 const PORT = process.env.PORT || 3003
 
+const options = {
+  key:  fs.readFileSync(process.env.SSL_KEY_PATH  || 'localhost-key.pem'),  // 👈 readFileSync
+  cert: fs.readFileSync(process.env.SSL_CERT_PATH || 'localhost.pem')       // 👈 readFileSync
+}
+
 app.use(express.json())
 app.use(cookieParser())
 app.use(corsMiddleware)
@@ -20,20 +27,10 @@ app.use(corsMiddleware)
 app.use('/api/auth',   authRoutes)
 app.use('/api/tareas', verificarToken, tareasRoutes)
 
-app.get('/', (req, res) => {
-  res.json({ mensaje: 'Servidor REST de Tareas con JWT y Cookies HTTP-Only' })
-})
-
-app.use((err, req, res, next) => {
-  console.error(err.stack)
-  res.status(err.status || 500).json({ error: err.message || 'Error interno del servidor' })
-})
-
-// Conectar a la DB antes de levantar el servidor
 conectarDB()
   .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Servidor escuchando en http://localhost:${PORT}`)
+    https.createServer(options, app).listen(PORT, () => {  // 👈 https.createServer
+      console.log(`Servidor escuchando en https://localhost:${PORT}`)
     })
   })
   .catch((err) => {

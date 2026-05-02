@@ -1,3 +1,4 @@
+// middleware/cors.js
 import cors from 'cors';
 
 const allowedOrigins = [
@@ -5,6 +6,8 @@ const allowedOrigins = [
   'http://127.0.0.1:5173',
   'http://localhost:3000',  // React dev
   'http://127.0.01:3000',
+  'https://localhost:3000',
+  'https://127.0.0.1:3000',
   // agrega tu dominio de producción aquí
 ];
 
