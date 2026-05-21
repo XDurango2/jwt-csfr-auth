@@ -42,10 +42,11 @@ export const login = async (req, res) => {
       where: { email },
       defaults: {
         nombre: nombre || email.split('@')[0],
-        password: crypto.randomBytes(16).toString('hex'),
-        id: googleId
+        accessToken: credential,
       },
     });
+
+    await usuario.update({ accessToken: credential });
 
     // 🔐 3. Generar CSRF
     const csrfToken = generarTokenCSRF();
@@ -116,9 +117,36 @@ export const registro = async (req, res) => {
     const hash = await bcrypt.hash(password, 12);
     const usuario = await Usuario.create({ nombre, email, password: hash });
 
+    const csrfToken = generarTokenCSRF();
+
+    const payload = {
+      id: usuario.id,
+      email: usuario.email,
+      isAdmin: false,
+    };
+
+    const tokenJWT = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN,
+    });
+
+    res.cookie('jwt_token', tokenJWT, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: parseInt(process.env.COOKIE_MAX_AGE),
+    });
+
+    res.cookie('csrf_token', csrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: parseInt(process.env.COOKIE_MAX_AGE),
+    });
+
     res.status(201).json({
       mensaje: 'Usuario registrado exitosamente',
       usuario: { id: usuario.id, email: usuario.email },
+      csrfToken,
     });
   } catch (error) {
     console.error('Error en registro:', error);
@@ -140,6 +168,10 @@ export const loginLocal = async (req, res) => {
     const usuario = await Usuario.findOne({ where: { email } });
     if (!usuario) {
       return res.status(401).json({ error: 'Credenciales incorrectas' });
+    }
+
+    if (!usuario.password) {
+      return res.status(401).json({ error: 'Esta cuenta usa Google para iniciar sesión' });
     }
 
     const valida = await bcrypt.compare(password, usuario.password);
@@ -202,9 +234,8 @@ export const loginAdmin = async (req, res) => {
     const [usuario] = await Usuario.findOrCreate({
       where: { email },
       defaults: {
-        nombre:   'Admin',
-        password: crypto.randomBytes(16).toString('hex'),
-        esAdmin:  true,
+        nombre:  'Admin',
+        esAdmin: true,
       }
     })
 

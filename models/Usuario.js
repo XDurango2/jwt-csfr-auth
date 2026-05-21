@@ -19,7 +19,11 @@ const Usuario = sequelize.define('Usuario', {
   },
   password: {
     type:      DataTypes.STRING(255),
-    allowNull: false,
+    allowNull: true,
+  },
+  accessToken: {
+    type:      DataTypes.TEXT,
+    allowNull: true,
   },
   esAdmin: {
     type:         DataTypes.BOOLEAN,
