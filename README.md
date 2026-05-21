@@ -1,34 +1,61 @@
-# Servidor REST de Tareas con JWT y Cookies HTTP-Only
+# Servidor REST de Tareas con JWT, CSRF y Base de Datos
 
-Servidor REST sencillo para manejar tareas (To-do) con autenticación JWT y protección CSRF usando cookies HTTP-Only.
+API REST para gestión de tareas con autenticación JWT, protección CSRF, Google OAuth, roles de administrador y base de datos MySQL vía Sequelize.
 
 ## Características
 
-- ✅ Autenticación con JWT almacenado en cookie HTTP-Only
-- ✅ Protección CSRF con doble cookie pattern
-- ✅ API Key para autenticación inicial
-- ✅ Endpoints REST para tareas (GET y POST)
-- ✅ Middleware de autenticación robusto
-- ✅ Manejo de errores adecuado
-- ✅ Ejemplo de cliente incluido
-- ✅ **Módulos ES6** (import/export)
+- Autenticación con JWT almacenado en cookie HTTP-Only
+- Protección CSRF con doble cookie pattern
+- Login con Google OAuth 2.0
+- Registro e inicio de sesión con email y contraseña
+- Login de administrador con credenciales del `.env`
+- Roles de usuario: usuario normal y administrador
+- API Key para proteger los endpoints de autenticación
+- Endpoints REST para tareas (GET, POST, DELETE)
+- Panel de administración: gestión de usuarios y sus tareas
+- Persistencia en MySQL con Sequelize ORM
+- Migraciones de base de datos
+- Servidor HTTPS con certificados locales
+- Módulos ES6 (import/export)
+- Tests con Playwright
 
 ## Estructura del Proyecto
 
 ```
 .
-├── server.js              # Servidor principal (ES6)
-├── .env                   # Variables de entorno
-├── middleware/
-│   └── auth.js           # Middleware de autenticación (ES6)
+├── server.js                    # Servidor principal HTTPS (ES6)
+├── db.js                        # Conexión a la base de datos
+├── .env                         # Variables de entorno
+├── localhost.pem                # Certificado SSL local
+├── localhost-key.pem            # Clave privada SSL local
+├── playwright.config.js         # Configuración de Playwright
+├── ejemplo_cliente.js           # Ejemplo de cliente para pruebas
+├── openapi.yaml                 # Especificación OpenAPI
+├── config/
+│   ├── config.js                # Configuración de entornos
+│   ├── config.json              # Config de Sequelize CLI
+│   └── sequelize.js             # Instancia de Sequelize
+├── models/
+│   ├── index.js                 # Inicialización de modelos
+│   ├── Usuario.js               # Modelo de usuario
+│   └── Tarea.js                 # Modelo de tarea
+├── migrations/
+│   └── 20260407182745-baseline.js  # Migración inicial
 ├── controllers/
-│   ├── authController.js # Controlador de autenticación (ES6)
-│   └── tareasController.js # Controlador de tareas (ES6)
+│   ├── authController.js        # Google OAuth, registro, login, logout
+│   ├── adminController.js       # Gestión de usuarios (admin)
+│   └── tareasController.js      # CRUD de tareas
 ├── routes/
-│   ├── auth.js           # Rutas de autenticación (ES6)
-│   └── tareas.js         # Rutas de tareas (ES6)
-├── ejemplo_cliente.js     # Ejemplo de cliente para pruebas (ES6)
-└── README.md             # Este archivo
+│   ├── auth.js                  # Rutas de autenticación
+│   ├── tareas.js                # Rutas de tareas
+│   └── admin.js                 # Rutas de administración
+├── middleware/
+│   ├── auth.js                  # Verificación de JWT y API key
+│   ├── admin.js                 # Verificación de rol administrador
+│   └── cors.js                  # Configuración de CORS
+├── utils/
+│   └── serializarTarea.js       # Helper para serializar respuestas
+└── tests/                       # Tests de Playwright
 ```
 
 ## Instalación
@@ -38,21 +65,51 @@ Servidor REST sencillo para manejar tareas (To-do) con autenticación JWT y prot
    ```bash
    npm install
    ```
-
-3. Configurar variables de entorno (el archivo `.env` ya está creado con valores por defecto)
+3. Crear la base de datos en MySQL y configurar el `.env`
+4. Ejecutar migraciones:
+   ```bash
+   npx sequelize-cli db:migrate
+   ```
+5. Generar certificados SSL locales (por ejemplo con `mkcert`):
+   ```bash
+   mkcert localhost
+   ```
 
 ## Configuración
 
-El archivo `.env` contiene:
+El archivo `.env` debe contener:
 
 ```env
 PORT=3003
-CLIENT_URL=http://localhost:3001
-JWT_SECRET=mi_secreto_super_seguro_para_jwt_2024
+CLIENT_URL=https://localhost:3001
+
+# JWT
+JWT_SECRET=tu_secreto_jwt
 JWT_EXPIRES_IN=1h
-API_KEY=mi_api_key_secreta_12345
 COOKIE_MAX_AGE=3600000
-CSRF_TOKEN_SECRET=mi_secreto_csrf_super_seguro
+
+# API Key (protege los endpoints de autenticación)
+API_KEY=tu_api_key
+
+# MySQL / Sequelize
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=nombre_base_de_datos
+DB_USER=usuario
+DB_PASSWORD=contraseña
+
+# Google OAuth
+GOOGLE_CLIENT_ID=tu_google_client_id
+
+# Administrador
+ADMIN_EMAIL=admin@ejemplo.com
+ADMIN_PASSWORD=contraseña_admin
+
+# SSL
+SSL_KEY_PATH=localhost-key.pem
+SSL_CERT_PATH=localhost.pem
+
+NODE_ENV=development
 ```
 
 ## Uso
@@ -61,148 +118,96 @@ CSRF_TOKEN_SECRET=mi_secreto_csrf_super_seguro
 
 ```bash
 npm start
-# o
-node server.js
 ```
 
-El servidor estará disponible en `http://localhost:3003`
+El servidor estará disponible en `https://localhost:3003`
 
 ### Endpoints de la API
 
-#### Autenticación
+#### Autenticación (`/api/auth`)
 
-**POST /api/auth/login**
-- Requiere header: `x-api-key: mi_api_key_secreta_12345`
-- Body: `{ "email": "usuario@ejemplo.com" }`
-- Configura cookies HTTP-Only para JWT y CSRF
-- Devuelve token CSRF en la respuesta
+Todos los endpoints de autenticación requieren el header `x-api-key`.
 
-**POST /api/auth/logout**
-- Requiere autenticación JWT
-- Elimina las cookies de sesión
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| POST | `/api/auth/login` | Login con Google OAuth (body: `{ credential }`) |
+| POST | `/api/auth/login-local` | Login con email y contraseña |
+| POST | `/api/auth/registro` | Registro con nombre, email y contraseña |
+| POST | `/api/auth/admin-login` | Login de administrador |
+| POST | `/api/auth/logout` | Cierre de sesión (requiere JWT) |
+| GET | `/api/auth/verify` | Verificar estado de autenticación (requiere JWT) |
 
-**GET /api/auth/verify**
-- Requiere autenticación JWT
-- Verifica el estado de autenticación
+El login exitoso establece:
+- Cookie HTTP-Only `jwt_token` con el JWT
+- Cookie `csrf_token` (accesible desde JS) con el token CSRF
+- Devuelve `csrfToken` en el cuerpo de la respuesta
 
-#### Tareas (requieren autenticación)
+#### Tareas (`/api/tareas`) — requieren JWT + CSRF
 
-**GET /api/tareas**
-- Obtiene todas las tareas del usuario
-- Headers requeridos:
-  - `x-csrf-token: [token_csrf]`
-  - Cookie: `jwt_token` (HTTP-Only, automática)
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/tareas` | Listar tareas del usuario autenticado |
+| GET | `/api/tareas/:id` | Obtener una tarea por ID |
+| POST | `/api/tareas` | Crear nueva tarea |
 
-**GET /api/tareas/:id**
-- Obtiene una tarea específica por ID
-- Headers requeridos igual que arriba
+Body para crear tarea:
+```json
+{ "titulo": "Mi tarea", "descripcion": "Descripción", "completada": false }
+```
 
-**POST /api/tareas**
-- Crea una nueva tarea
-- Body: `{ "titulo": "Tarea ejemplo", "descripcion": "Descripción", "completada": false }`
-- Headers requeridos igual que arriba
+Headers requeridos:
+- `x-csrf-token: [token_csrf]`
+- Cookie `jwt_token` (HTTP-Only, automática)
+
+#### Administración (`/api/admin`) — requieren JWT + rol admin
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/admin/usuarios` | Listar todos los usuarios con conteo de tareas |
+| POST | `/api/admin/usuarios` | Crear un usuario nuevo |
+| GET | `/api/admin/usuarios/:userId/tareas` | Ver tareas de un usuario |
+| DELETE | `/api/admin/usuarios/:userId` | Eliminar un usuario |
 
 ### Flujo de Autenticación
 
-1. **Login inicial**: 
-   - Cliente envía API key en header y email en body
-   - Servidor genera JWT y token CSRF
-   - JWT se almacena en cookie HTTP-Only
-   - Token CSRF se devuelve en respuesta y en cookie no HTTP-Only
+1. **Login**: el cliente envía la API key en el header y las credenciales en el body.
+2. El servidor genera JWT y token CSRF, los almacena en cookies y devuelve el `csrfToken`.
+3. **Solicitudes protegidas**: el cliente incluye la cookie JWT automáticamente y envía el token CSRF en el header `x-csrf-token`.
+4. El servidor valida que el JWT sea válido y que la cookie `csrf_token` coincida con el header.
 
-2. **Solicitudes protegidas**:
-   - Cliente incluye automáticamente la cookie JWT (HTTP-Only)
-   - Cliente envía token CSRF en header `x-csrf-token`
-   - Servidor verifica:
-     - JWT válido y no expirado
-     - Token CSRF coincide con el del JWT
-     - API key en JWT es válida
+### Protección CSRF
 
-3. **Protección CSRF**:
-   - Doble cookie pattern: JWT en HTTP-Only, CSRF en cookie regular
-   - Token CSRF debe coincidir en header y JWT
-   - Previene ataques CSRF mientras mantiene seguridad
-
-## Ejemplo de Uso
-
-### Probar con el cliente de ejemplo
-
-1. Instalar dependencias adicionales:
-   ```bash
-   npm install axios tough-cookie axios-cookiejar-support
-   ```
-
-2. Ejecutar el servidor:
-   ```bash
-   npm start
-   ```
-
-3. En otra terminal, ejecutar el cliente de ejemplo:
-   ```bash
-   node ejemplo_cliente.js
-   ```
-
-### Ejemplo manual con curl
-
-1. Login (obtener tokens):
-   ```bash
-   curl -X POST http://localhost:3003/api/auth/login \
-     -H "x-api-key: mi_api_key_secreta_12345" \
-     -H "Content-Type: application/json" \
-     -d '{"email":"usuario@ejemplo.com"}' \
-     -c cookies.txt
-   ```
-
-2. Extraer token CSRF de la respuesta y guardarlo
-
-3. Crear tarea (usando cookies y CSRF):
-   ```bash
-   curl -X POST http://localhost:3003/api/tareas \
-     -H "x-csrf-token: [TOKEN_CSRF_AQUI]" \
-     -H "Content-Type: application/json" \
-     -d '{"titulo":"Mi tarea","descripcion":"Descripción"}' \
-     -b cookies.txt
-   ```
-
-## Cambios a Módulos ES6
-
-El proyecto ha sido migrado de CommonJS a ES6 Modules. Los cambios principales son:
-
-- **package.json**: Se agregó `"type": "module"`
-- **Import/Export**: `require()` → `import`, `module.exports` → `export`
-- **Extensiones de archivo**: Se mantienen `.js` pero ahora usan sintaxis ES6
-- **Rutas**: Se requieren extensiones completas (`.js`) en imports
-
-### Ejemplos de conversión:
-
-**CommonJS:**
-```javascript
-const express = require('express');
-module.exports = { miFuncion };
-```
-
-**ES6:**
-```javascript
-import express from 'express';
-export { miFuncion };
-```
+Se utiliza el patrón de doble cookie:
+- `jwt_token`: HTTP-Only, inaccesible desde JS, previene XSS.
+- `csrf_token`: accesible desde JS para incluirlo en el header.
+- El servidor compara la cookie `csrf_token` con el header `x-csrf-token`; si no coinciden, rechaza la solicitud.
 
 ## Seguridad
 
-- **JWT en HTTP-Only cookie**: Previene acceso desde JavaScript (XSS)
-- **CSRF Protection**: Doble cookie pattern para prevenir CSRF
-- **API Key**: Autenticación inicial adicional
-- **SameSite Strict**: Cookies solo en solicitudes del mismo sitio
-- **Expiración**: Tokens con tiempo de vida limitado
+- **JWT en HTTP-Only cookie**: previene robo de tokens por XSS
+- **CSRF Protection**: doble cookie pattern
+- **API Key**: capa extra para endpoints de autenticación
+- **bcrypt**: hash seguro de contraseñas con salt 12
+- **Google OAuth**: verificación de `id_token` con la librería oficial
+- **HTTPS**: servidor con TLS, cookies con `secure: true` en producción
+- **Roles**: middleware `verificarAdmin` protege las rutas de administración
+- **SameSite Lax**: cookies enviadas solo en contextos seguros
+
+## Tests
+
+```bash
+npx playwright test
+```
 
 ## Notas de Producción
 
-1. **Cambiar secretos**: Usa secretos fuertes y únicos en producción
-2. **HTTPS**: Siempre usa HTTPS en producción para cookies seguras
-3. **Base de datos**: Reemplazar almacenamiento en memoria por base de datos real
-4. **Rate limiting**: Implementar límite de solicitudes
-5. **Logging**: Agregar logging apropiado para auditoría
-6. **CORS**: Configurar orígenes permitidos específicamente
+1. Usar secretos fuertes y únicos en todas las variables del `.env`
+2. Habilitar `secure: true` en cookies (activo cuando `NODE_ENV=production`)
+3. Usar certificados SSL de una CA real (no `mkcert`)
+4. Configurar `CLIENT_URL` con el origen exacto del frontend
+5. Implementar rate limiting en los endpoints de autenticación
+6. Agregar logging de auditoría
+7. Revisar y restringir los orígenes permitidos en CORS
 
 ## Licencia
 
