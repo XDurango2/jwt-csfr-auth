@@ -6,8 +6,10 @@ import cookieParser from 'cookie-parser'
 import dotenv from 'dotenv'
 import { corsMiddleware } from './middleware/cors.js'
 import { verificarToken } from './middleware/auth.js'
+import { verificarAdmin } from './middleware/admin.js'
 import tareasRoutes from './routes/tareas.js'
 import authRoutes from './routes/auth.js'
+import adminRoutes from './routes/admin.js'
 import { conectarDB } from './db.js'
 
 dotenv.config()
@@ -26,6 +28,7 @@ app.use(corsMiddleware)
 
 app.use('/api/auth',   authRoutes)
 app.use('/api/tareas', verificarToken, tareasRoutes)
+app.use('/api/admin',  verificarToken, verificarAdmin, adminRoutes)
 
 conectarDB()
   .then(() => {

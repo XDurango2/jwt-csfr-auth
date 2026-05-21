@@ -1,7 +1,8 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import Usuario from '../models/Usuario.js';
-import { OAuth2Client } from 'google-auth-library'; 
+import { OAuth2Client } from 'google-auth-library';
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClient = new OAuth2Client(googleClientId);
@@ -92,6 +93,164 @@ export const login = async (req, res) => {
     res.status(401).json({ error: 'Token de Google inválido' });
   }
 };
+/**
+ * Registro de usuario con email + contraseña
+ */
+export const registro = async (req, res) => {
+  try {
+    const { nombre, email, password } = req.body;
+
+    if (!nombre || !email || !password) {
+      return res.status(400).json({ error: 'Nombre, email y contraseña requeridos' });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' });
+    }
+
+    const existe = await Usuario.findOne({ where: { email } });
+    if (existe) {
+      return res.status(409).json({ error: 'El email ya está registrado' });
+    }
+
+    const hash = await bcrypt.hash(password, 12);
+    const usuario = await Usuario.create({ nombre, email, password: hash });
+
+    res.status(201).json({
+      mensaje: 'Usuario registrado exitosamente',
+      usuario: { id: usuario.id, email: usuario.email },
+    });
+  } catch (error) {
+    console.error('Error en registro:', error);
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+};
+
+/**
+ * Login con email + contraseña local
+ */
+export const loginLocal = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email y contraseña requeridos' });
+    }
+
+    const usuario = await Usuario.findOne({ where: { email } });
+    if (!usuario) {
+      return res.status(401).json({ error: 'Credenciales incorrectas' });
+    }
+
+    const valida = await bcrypt.compare(password, usuario.password);
+    if (!valida) {
+      return res.status(401).json({ error: 'Credenciales incorrectas' });
+    }
+
+    const csrfToken = generarTokenCSRF();
+
+    const payload = {
+      id: usuario.id,
+      email: usuario.email,
+      isAdmin: usuario.esAdmin,
+    };
+
+    const tokenJWT = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN,
+    });
+
+    res.cookie('jwt_token', tokenJWT, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: parseInt(process.env.COOKIE_MAX_AGE),
+    });
+
+    res.cookie('csrf_token', csrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: parseInt(process.env.COOKIE_MAX_AGE),
+    });
+
+    res.json({
+      mensaje: 'Login exitoso',
+      usuario: { id: usuario.id, email: usuario.email },
+      csrfToken,
+    });
+  } catch (error) {
+    console.error('Error en loginLocal:', error);
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+};
+
+/**
+ * Login de administrador con email + contraseña (desde .env)
+ */
+export const loginAdmin = async (req, res) => {
+  try {
+    const { email, password } = req.body
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email y contraseña requeridos' })
+    }
+
+    if (email !== process.env.ADMIN_EMAIL || password !== process.env.ADMIN_PASSWORD) {
+      return res.status(401).json({ error: 'Credenciales incorrectas' })
+    }
+
+    const [usuario] = await Usuario.findOrCreate({
+      where: { email },
+      defaults: {
+        nombre:   'Admin',
+        password: crypto.randomBytes(16).toString('hex'),
+        esAdmin:  true,
+      }
+    })
+
+    if (!usuario.esAdmin) {
+      await usuario.update({ esAdmin: true })
+    }
+
+    const csrfToken = generarTokenCSRF()
+
+    const payload = {
+      id:      usuario.id,
+      email:   usuario.email,
+      isAdmin: true,
+    }
+
+    const tokenJWT = jwt.sign(
+      payload,
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN }
+    )
+
+    res.cookie('jwt_token', tokenJWT, {
+      httpOnly: true,
+      secure:   process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge:   parseInt(process.env.COOKIE_MAX_AGE)
+    })
+
+    res.cookie('csrf_token', csrfToken, {
+      httpOnly: false,
+      secure:   process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge:   parseInt(process.env.COOKIE_MAX_AGE)
+    })
+
+    res.json({
+      mensaje:  'Login admin exitoso',
+      usuario:  { id: usuario.id, email: usuario.email },
+      csrfToken,
+    })
+  } catch (error) {
+    console.error('Error en login admin:', error)
+    res.status(500).json({ error: 'Error en el servidor' })
+  }
+}
+
 /**
  * Logout - Eliminar cookies
  */

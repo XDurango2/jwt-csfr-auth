@@ -1,5 +1,5 @@
 import express from 'express';
-import { login, logout, verificarAuth } from '../controllers/authController.js';
+import { login, loginLocal, registro, loginAdmin, logout, verificarAuth } from '../controllers/authController.js';
 import { validarApiKey, verificarToken } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -9,7 +9,10 @@ const router = express.Router();
  * @desc    Iniciar sesión y obtener tokens
  * @access  Público (pero requiere API key en header)
  */
-router.post('/login', validarApiKey, login);
+router.post('/login',       validarApiKey, login);
+router.post('/registro',    validarApiKey, registro);
+router.post('/login-local', validarApiKey, loginLocal);
+router.post('/admin-login', validarApiKey, loginAdmin);
 
 /**
  * @route   POST /api/auth/logout

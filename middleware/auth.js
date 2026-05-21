@@ -31,8 +31,9 @@ export const verificarToken = (req, res, next) => {
 
     // Agregar información del usuario a la request
     req.usuario = {
-      id: decoded.id,
-      email: decoded.email,
+      id:      decoded.id,
+      email:   decoded.email,
+      isAdmin: decoded.isAdmin || false,
     };
 
     next();

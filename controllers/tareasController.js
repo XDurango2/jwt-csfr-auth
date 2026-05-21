@@ -1,5 +1,6 @@
 // controllers/tareasController.js
 import Tarea from '../models/Tarea.js'
+import { serializarTarea } from '../utils/serializarTarea.js'
 
 /**
  * GET /api/tareas
@@ -11,7 +12,7 @@ export const obtenerTareas = async (req, res) => {
       where: { usuarioId: req.usuario.id },
       order: [['created_at', 'DESC']],
     })
-    res.json(tareas)
+    res.json(tareas.map(serializarTarea))
   } catch (error) {
     console.error('Error al obtener tareas:', error)
     res.status(500).json({ error: 'Error al obtener tareas' })
@@ -28,7 +29,7 @@ export const obtenerTareaPorId = async (req, res) => {
       where: { id: req.params.id, usuarioId: req.usuario.id },
     })
     if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' })
-    res.json(tarea)
+    res.json(serializarTarea(tarea))
   } catch (error) {
     console.error('Error al obtener tarea:', error)
     res.status(500).json({ error: 'Error al obtener tarea' })
@@ -60,7 +61,7 @@ export const crearTarea = async (req, res) => {
       categorias: cats,
       completada: false,
     })
-    res.status(201).json(tarea)
+    res.status(201).json(serializarTarea(tarea))
   } catch (error) {
     console.error('Error al crear tarea:', error)
     res.status(500).json({ error: 'Error al crear tarea' })
@@ -91,7 +92,7 @@ export const actualizarTarea = async (req, res) => {
       ...(cats       !== undefined && { categorias: cats }),
       ...(completada !== undefined && { completada: Boolean(completada) }),
     })
-    res.json(tarea)
+    res.json(serializarTarea(tarea))
   } catch (error) {
     console.error('Error al actualizar tarea:', error)
     res.status(500).json({ error: 'Error al actualizar tarea' })

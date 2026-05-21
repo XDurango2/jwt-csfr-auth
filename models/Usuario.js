@@ -21,7 +21,12 @@ const Usuario = sequelize.define('Usuario', {
     type:      DataTypes.STRING(255),
     allowNull: false,
   },
-  
+  esAdmin: {
+    type:         DataTypes.BOOLEAN,
+    allowNull:    false,
+    defaultValue: false,
+  },
+
 }, {
   tableName:  'usuarios',
   timestamps: true,               // agrega createdAt y updatedAt automáticamente

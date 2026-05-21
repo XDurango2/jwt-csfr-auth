@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\XDurango\\\\Desktop\\\\proyectos escolares\\\\web_projects\\\\auth_demo\\\\jwt-csfr-auth\" -Recurse -File | Where-Object { $_.FullName -notmatch 'node_modules' } | Select-Object FullName | Sort-Object FullName)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\XDurango\\\\Desktop\\\\proyectos escolares\\\\web_projects\\\\to_do list\\(new\\)\\\\to-do-list\\\\todo-list\" -Recurse -File | Where-Object { $_.FullName -notmatch 'node_modules' } | Select-Object FullName | Sort-Object FullName)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\XDurango\\\\Desktop\\\\proyectos escolares\\\\web_projects\\\\auth_demo\\\\jwt-csfr-auth\" -Recurse -File -Exclude node_modules | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\XDurango\\\\Desktop\\\\proyectos escolares\\\\web_projects\\\\to_do list\\(new\\)\\\\to-do-list\\\\todo-list\" -Recurse -File -Exclude node_modules | ForEach-Object { $_.FullName })"
+    ]
+  }
+}
